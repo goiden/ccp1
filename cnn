@@ -1,1 +1,127 @@
-1
+# -*- coding: utf-8 -*-
+"""
+
+@author: Administrator
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Dec 27 14:40:40 2016
+
+@author: Administrator
+"""
+
+import pandas as pd
+from numpy.random import randn
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime
+import time
+from sklearn.cross_validation import train_test_split, cross_val_score
+from sklearn import preprocessing
+#read data
+df1 =pd.read_csv('/home/cr/Documents/20170228invest.csv') #invest activities data
+df2=pd.read_csv('/home/cr/Documents/20170228withdraw.csv') #withdraw activities data
+df3= pd.read_csv('/home/cr/Documents/yeld1227.csv')#account balance
+df4=pd.read_csv('/home/cr/Documents/alluser1227')#user list
+#rename 
+df1.columns =['uid','jiaoyidate','invest_benji']
+df2.columns =['uid','jiaoyidate','withbenji']
+#merge data
+df1=df1.set_index(['uid','jiaoyidate'])
+df2=df2.set_index(['uid','jiaoyidate'])
+df3=df3.set_index(['uid','jiaoyidate'])
+df21=df1.unstack('jiaoyidate',fill_value=0)
+df22=df2.unstack('jiaoyidate',fill_value=0)
+df23=df3.unstack('jiaoyidate',fill_value=0)
+df21=df21.reset_index()
+df22=df22.reset_index()
+df23=df23.reset_index()
+
+dfal=pd.merge(df23,df21,how='left')
+dfal9=pd.merge(dfal,df22,on='uid',how='left')
+dfal9.rename(columns={'uid,")':'uid'}, inplace = True) 
+dfall=pd.merge(dfal9,df4,on='uid',how='left')
+dfall=dfall.fillna(0)
+dfall1=dfall.iloc[:,2:-1].as_matrix()
+X=preprocessing.scale(dfall1)
+#reshape data to matrix
+X=X.reshape(41473,182,3,1)
+y= dfall.iloc[:,-1].as_matrix()
+#train test split
+X_train,X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3)
+
+
+from __future__ import print_function
+import numpy as np
+from keras.datasets import mnist
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D
+from keras.utils import np_utils
+from keras import backend as K
+
+
+batch_size = 128
+nb_classes = 2
+nb_epoch = 100
+
+# input image dimensions
+img_rows, img_cols = 3, 182
+# number of convolutional filters to use
+#nb_filters = 32
+nb_filters_1=24
+nb_filters_2=48
+# convolution kernel size
+kernel_size = (1, 7)
+kernel_size2 = (3, 7)
+
+# size of pooling area for max pooling
+pool_size = (1, 7)
+
+input_shape = ( img_rows, img_cols,1)
+
+X_train = X_train.astype('float32')
+X_test = X_test.astype('float32')
+X_train /= 255
+X_test /= 255
+print('X_train shape:', X_train.shape)
+print(X_train.shape[0], 'train samples')
+print(X_test.shape[0], 'test samples')
+
+# convert class vectors to binary class matrices
+Y_train = np_utils.to_categorical(y_train, nb_classes)
+Y_test = np_utils.to_categorical(y_test, nb_classes)
+#keras model
+
+model = Sequential()
+model.add(Convolution2D(nb_filters_1, kernel_size[0], kernel_size[1],
+                        border_mode='valid'
+                       ,input_shape=input_shape,name='conv1_1'))                   
+model.add(Activation('relu'))
+model.add(Convolution2D(nb_filters_2, kernel_size2[0], kernel_size2[1],name='conv1_2'))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=pool_size2))
+model.add(Dropout(0.1))
+model.add(Flatten())
+model.add(Dense(128))
+model.add(Activation('relu'))
+model.add(Dense(64))
+model.add(Dense(2))
+model.add(Activation('softmax'))
+model.summary()
+
+model.compile(loss='categorical_crossentropy',
+              optimizer='adadelta',
+              metrics=['accuracy'])
+history = LossHistory()
+
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
+          verbose=1, validation_split=0.1,callbacks=[history])  
+score = model.evaluate(X_test, Y_test, verbose=0)
+print('Test score:', score[0])
+print('Test accuracy:', score[1])
+
+predicttestcnn= model.predict_proba(X_test, batch_size=32, verbose=0)
+predicttestcnn=predicttestcnn[:, 1]
+roc_auc_score(y_test, predicttestcnn)
